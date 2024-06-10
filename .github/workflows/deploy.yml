@@ -31,12 +31,9 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp code_ingestion.zip 
-s3://lambda-functions-bucket/code_ingestion.zip
-          aws s3 cp code_quality_metrics.zip 
-s3://lambda-functions-bucket/code_quality_metrics.zip
-          aws s3 cp word_suggestions.zip 
-s3://lambda-functions-bucket/word_suggestions.zip
+          aws s3 cp code_ingestion.zip s3://git-radar-code-storage/code_ingestion.zip
+          aws s3 cp code_quality_metrics.zip s3://git-radar-code-storage/code_quality_metrics.zip
+          aws s3 cp word_suggestions.zip s3://git-radar-code-storage/word_suggestions.zip
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

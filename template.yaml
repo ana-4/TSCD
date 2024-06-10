@@ -95,6 +95,18 @@ Resources:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
 
+  MetricsDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: git-radar-metrics-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: mysql
+      MasterUsername: masteruser
+      MasterUserPassword: masterpassword
+      DBName: MetricsDB
+      PubliclyAccessible: false
+
 Outputs:
   CodeStorageBucketName:
     Description: "S3 bucket for storing code"
@@ -103,6 +115,10 @@ Outputs:
   AnalysisResultsBucketName:
     Description: "S3 bucket for storing analysis results"
     Value: !Ref AnalysisResultsBucket
+
+  DBEndpoint:
+    Description: "RDS endpoint for Metrics DB"
+    Value: !GetAtt MetricsDBInstance.Endpoint.Address
 
   SuggestionsTableName:
     Description: "DynamoDB table for word suggestions"
