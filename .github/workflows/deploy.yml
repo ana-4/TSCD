@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Deploy to LocalStack
 
 on:
   push:
@@ -8,6 +8,17 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    services:
+      localstack:
+        image: localstack/localstack
+        ports:
+          - 4566:4566
+          - 4571:4571
+        env:
+          SERVICES: s3,lambda,dynamodb,cloudformation,iam,rds
+          DEBUG: 1
+        options: --privileged
 
     steps:
       - name: Checkout code
@@ -29,24 +40,25 @@ jobs:
           zip -r code_quality_metrics.zip code_quality_metrics.py
           zip -r word_suggestions.zip word_suggestions.py
 
-      - name: Upload to S3
+      - name: Configure AWS CLI for LocalStack
         run: |
-          aws s3 cp code_ingestion.zip s3://git-radar-code-storage/code_ingestion.zip
-          aws s3 cp code_quality_metrics.zip s3://git-radar-code-storage/code_quality_metrics.zip
-          aws s3 cp word_suggestions.zip s3://git-radar-code-storage/word_suggestions.zip
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
+          aws configure set aws_access_key_id test_id --profile localstack
+          aws configure set aws_secret_access_key test_key --profile localstack
+          aws configure set region us-east-1 --profile localstack
+          aws configure set output json --profile localstack
 
-      - name: Deploy CloudFormation stack
+      - name: Upload to S3 (LocalStack)
         run: |
-          aws cloudformation deploy \
-            --template-file template.yaml \
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://git-radar-code-storage --profile localstack
+          aws --endpoint-url=http://localhost:4566 s3 cp code_ingestion.zip s3://git-radar-code-storage/code_ingestion.zip --profile localstack
+          aws --endpoint-url=http://localhost:4566 s3 cp code_quality_metrics.zip s3://git-radar-code-storage/code_quality_metrics.zip --profile localstack
+          aws --endpoint-url=http://localhost:4566 s3 cp word_suggestions.zip s3://git-radar-code-storage/word_suggestions.zip --profile localstack
+
+      - name: Deploy CloudFormation stack (LocalStack)
+        run: |
+          aws --endpoint-url=http://localhost:4566 cloudformation create-stack \
             --stack-name GitRadarStack \
-            --capabilities CAPABILITY_NAMED_IAM
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
+            --template-body file://template.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --profile localstack
 
