@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  CodeStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: git-radar-code-storage
+
+  AnalysisResultsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: git-radar-analysis-results
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - arn:aws:s3:::git-radar-code-storage/*
+                  - arn:aws:s3:::git-radar-analysis-results/*
+
+  CodeIngestionFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: CodeStorageBucket
+    Properties:
+      FunctionName: CodeIngestionFunction
+      Handler: code_ingestion.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: git-radar-code-storage
+        S3Key: code_ingestion.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref CodeStorageBucket
+
+  CodeQualityMetricsFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: AnalysisResultsBucket
+    Properties:
+      FunctionName: CodeQualityMetricsFunction
+      Handler: code_quality_metrics.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: git-radar-code-storage
+        S3Key: code_quality_metrics.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          RESULTS_BUCKET: !Ref AnalysisResultsBucket
+
+  WordSuggestionsFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: SuggestionsTable
+    Properties:
+      FunctionName: WordSuggestionsFunction
+      Handler: word_suggestions.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: git-radar-code-storage
+        S3Key: word_suggestions.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref SuggestionsTable
+
+  SuggestionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: WordSuggestions
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  CodeStorageBucketName:
+    Description: "S3 bucket for storing code"
+    Value: !Ref CodeStorageBucket
+
+  AnalysisResultsBucketName:
+    Description: "S3 bucket for storing analysis results"
+    Value: !Ref AnalysisResultsBucket
+
+  SuggestionsTableName:
+    Description: "DynamoDB table for word suggestions"
+    Value: !Ref SuggestionsTable
