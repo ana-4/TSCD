@@ -32,6 +32,11 @@ Resources:
                 Resource:
                   - arn:aws:s3:::git-radar-code-storage/*
                   - arn:aws:s3:::git-radar-analysis-results/*
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                Resource: arn:aws:dynamodb:us-east-1:000000000000:table/*
 
   CodeIngestionFunction:
     Type: AWS::Lambda::Function
@@ -51,7 +56,6 @@ Resources:
 
   CodeQualityMetricsFunction:
     Type: AWS::Lambda::Function
-    DependsOn: AnalysisResultsBucket
     Properties:
       FunctionName: CodeQualityMetricsFunction
       Handler: code_quality_metrics.lambda_handler
@@ -63,11 +67,12 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
-          RESULTS_BUCKET: !Ref AnalysisResultsBucket
+          S3_BUCKET: git-radar-code-storage
+          DYNAMODB_TABLE: "CodeQualityMetrics"
+
 
   WordSuggestionsFunction:
     Type: AWS::Lambda::Function
-    DependsOn: SuggestionsTable
     Properties:
       FunctionName: WordSuggestionsFunction
       Handler: word_suggestions.lambda_handler
@@ -79,33 +84,36 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
-          DYNAMODB_TABLE: !Ref SuggestionsTable
+          S3_BUCKET: git-radar-code-storage
+          DYNAMODB_TABLE: "WordSuggestions"
 
-  SuggestionsTable:
+  WordSuggestionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: WordSuggestions
       AttributeDefinitions:
-        - AttributeName: id
+        - AttributeName: context
           AttributeType: S
       KeySchema:
-        - AttributeName: id
+        - AttributeName: context
           KeyType: HASH
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
 
-  MetricsDBInstance:
-    Type: AWS::RDS::DBInstance
+  CodeQualityMetricsTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      DBInstanceIdentifier: git-radar-metrics-db
-      AllocatedStorage: 20
-      DBInstanceClass: db.t3.micro
-      Engine: mysql
-      MasterUsername: masteruser
-      MasterUserPassword: masterpassword
-      DBName: MetricsDB
-      PubliclyAccessible: false
+      TableName: CodeQualityMetrics
+      AttributeDefinitions:
+        - AttributeName: repo_name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: repo_name
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
 
 Outputs:
   CodeStorageBucketName:
@@ -116,10 +124,10 @@ Outputs:
     Description: "S3 bucket for storing analysis results"
     Value: !Ref AnalysisResultsBucket
 
-  DBEndpoint:
-    Description: "RDS endpoint for Metrics DB"
-    Value: !GetAtt MetricsDBInstance.Endpoint.Address
-
-  SuggestionsTableName:
+  WordSuggestionsTableName:
     Description: "DynamoDB table for word suggestions"
-    Value: !Ref SuggestionsTable
+    Value: !Ref WordSuggestionsTable
+
+  CodeQualityMetricsTableName:
+    Description: "DynamoDB table for code quality metrics"
+    Value: !Ref CodeQualityMetricsTable

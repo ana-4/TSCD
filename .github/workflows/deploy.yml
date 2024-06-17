@@ -16,7 +16,7 @@ jobs:
           - 4566:4566
           - 4571:4571
         env:
-          SERVICES: s3,lambda,dynamodb,cloudformation,iam,rds
+          SERVICES: s3,lambda,dynamodb,cloudformation,iam,logs
           DEBUG: 1
         options: --privileged
 
@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install boto3 requests radon sqlalchemy pymysql moto pytest
+          pip install boto3 requests radon 
 
       - name: Package Lambda functions
         run: |
@@ -50,6 +50,7 @@ jobs:
       - name: Upload to S3 (LocalStack)
         run: |
           aws --endpoint-url=http://localhost:4566 s3 mb s3://git-radar-code-storage --profile localstack
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://git-radar-analysis-results --profile localstack
           aws --endpoint-url=http://localhost:4566 s3 cp code_ingestion.zip s3://git-radar-code-storage/code_ingestion.zip --profile localstack
           aws --endpoint-url=http://localhost:4566 s3 cp code_quality_metrics.zip s3://git-radar-code-storage/code_quality_metrics.zip --profile localstack
           aws --endpoint-url=http://localhost:4566 s3 cp word_suggestions.zip s3://git-radar-code-storage/word_suggestions.zip --profile localstack
