@@ -68,6 +68,7 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET: git-radar-code-storage
+          RESULTS_BUCKET: !Ref AnalysisResultsBucket
           DYNAMODB_TABLE: "CodeQualityMetrics"
 
 

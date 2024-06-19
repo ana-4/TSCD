@@ -86,7 +86,8 @@ def lambda_handler(event, context):
         metrics = analyze_code(code)
 
         s3_client.put_object(
-            Bucket=s3_bucket,
+            Bucket=os.environ['RESULTS_BUCKET'],
+            #Bucket=s3_bucket,
             Key=f"analysis-results/{repo_name}-metrics.json",
             Body=json.dumps(metrics)
         )
